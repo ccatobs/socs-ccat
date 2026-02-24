@@ -468,9 +468,20 @@ class HWPGripperAgent:
             data['responses'].append(return_dict)
             return return_dict
 
-        # We should check if hwp is already gripper or not
+        # Check controller alarm
         return_dict = run_and_append(self.client.get_state, job='grip',
                                      check_shutdown=check_shutdown)
+        if return_dict['result']['jxc']['alarm']:
+            return_dict = self._run_client_func(
+                self.client.alarm_group, job='alarm_group', check_shutdown=False)
+            if return_dict['result'] is None:
+                return_dict['result'] = 'A'
+            alarm_message = self.decoded_alarm_group[return_dict['result']]
+            self.log.error(
+                f"Abort grip. Detected contoller alarm: {alarm_message}")
+            return False, data
+
+        # Check if hwp is already gripper or not
         act_results = return_dict['result']['actuators']
         limit_switch_state = act_results[0]['limits']['warm_grip']['state'] | \
             act_results[1]['limits']['warm_grip']['state'] | \
@@ -629,6 +640,19 @@ class HWPGripperAgent:
             data['responses'].append(return_dict)
             return return_dict
 
+        # Check controller alarm
+        return_dict = run_and_append(self.client.get_state, job='ungrip',
+                                     check_shutdown=check_shutdown)
+        if return_dict['result']['jxc']['alarm']:
+            return_dict = self._run_client_func(
+                self.client.alarm_group, job='alarm_group', check_shutdown=False)
+            if return_dict['result'] is None:
+                return_dict['result'] = 'A'
+            alarm_message = self.decoded_alarm_group[return_dict['result']]
+            self.log.error(
+                f"Abort ungrip. Detected contoller alarm: {alarm_message}")
+            return False, data
+
         run_and_append(self.client.reset, job='ungrip', check_shutdown=check_shutdown)
         # Enable power to actuators
         run_and_append(self.client.power, True, job='ungrip', check_shutdown=check_shutdown)
@@ -765,7 +789,7 @@ class HWPGripperAgent:
             if bool(state['jxc']['alarm']):
                 out_value = int(state['jxc']['out']) % 16
                 if out_value in alarm_group_mapping.keys():
-                    alarm_message = self.decoded_alarm_group[alarm_group_mapping]
+                    alarm_message = self.decoded_alarm_group[alarm_group_mapping[out_value]]
                 else:
                     alarm_message = self.decoded_alarm_group['A']
             else:
@@ -855,12 +879,13 @@ class HWPGripperAgent:
                 warning_issued = True
 
             if time_since_ok > params['no_data_shutdown_time']:
-                self.log.error(
-                    f"Have not received 'ok' in "
-                    f"{params['no_data_shutdown_time'] / 60:.2f} minutes. "
-                    "Issuing shutdown"
-                )
-                self.agent.start('shutdown')
+                if not self.shutdown_mode:
+                    self.log.error(
+                        f"Have not received 'ok' in "
+                        f"{params['no_data_shutdown_time'] / 60:.2f} minutes. "
+                        "Issuing shutdown"
+                    )
+                    self.agent.start('shutdown')
 
             data = {
                 'data': {'gripper_action': action},

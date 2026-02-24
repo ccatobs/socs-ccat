@@ -12,12 +12,15 @@ root = os.path.abspath(os.path.split(__file__)[0])
 
 for n, f in [
         ('ACUAgent', 'acu/agent.py'),
+        ('BLHAgent', 'orientalmotor_blh/agent.py'),
         ('BlueforsAgent', 'bluefors/agent.py'),
         ('CrateAgent', 'smurf_crate_monitor/agent.py'),
         ('CryomechCPAAgent', 'cryomech_cpa/agent.py'),
+        ('dS378Agent', 'devantech_dS378/agent.py'),
         ('FlowmeterAgent', 'ifm_sbn246_flowmeter/agent.py'),
         ('FPGAAgent', 'holo_fpga/agent.py'),
         ('FTSAerotechAgent', 'fts_aerotech/agent.py'),
+        ('GalilAxisAgent', 'galil_axis/agent.py'),
         ('HTTPCameraAgent', 'http_camera/agent.py'),
         ('HWPBBBAgent', 'hwp_encoder/agent.py'),
         ('HWPPCUAgent', 'hwp_pcu/agent.py'),
@@ -44,6 +47,7 @@ for n, f in [
         ('SmurfFileEmulator', 'smurf_file_emulator/agent.py'),
         ('SmurfStreamSimulator', 'smurf_stream_simulator/agent.py'),
         ('SmurfTimingCardAgent', 'smurf_timing_card/agent.py'),
+        ('SRSCG635Agent', 'srs_cg635/agent.py'),
         ('SupRsync', 'suprsync/agent.py'),
         ('SynaccessAgent', 'synacc/agent.py'),
         ('SynthAgent', 'holo_synth/agent.py'),

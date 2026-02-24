@@ -333,6 +333,28 @@ class Channel:
 
         return data
 
+    def get_curve_header(self):
+
+        breakpoints = []
+        for i in range(1, 201):
+            resp = self.ls.msg("CRVPT? {},{}".format(self.channel_num, i))
+            unit, temp = resp.split(',')
+            if float(unit) == 0.0:
+                break
+            breakpoints.append((float(unit), float(temp)))
+        resp = self.ls.msg("CRVHDR? {}".format(self.channel_num)).split(',')
+
+        header = {
+            "Sensor_Model": resp[0],
+            "Serial_Number": resp[1],
+            "Data_Format": int(resp[2]),
+            "SetPoint_Limit": float(resp[3]),
+            "Temperature_Coefficient": int(resp[4]),
+            "Number_of_Breakpoints": len(breakpoints)
+        }
+
+        return header
+
     def read_curve(self):
         # Reads curve
         breakpoints = []

@@ -177,6 +177,34 @@ class LS240_Agent:
 
         return True, current_values
 
+    @ocs_agent.param('channel', type=int, check=lambda x: 1 <= x <= 8)
+    def get_curve_header(self, session, params):
+
+        with self.lock.acquire_timeout(0, job='get_values') as acquired:
+            if not acquired:
+                self.log.warn(f"Could not start Task because "
+                              f"{self.lock.job} is already running")
+                return False, "Could not acquire lock"
+
+            header_values = self.module.channels[params["channel"] - 1].get_curve_header()
+            sensor_model = header_values['Sensor_Model']
+            serial_number = header_values['Serial_Number']
+            data_format = header_values['Data_Format']
+            setpoint_limit = header_values['SetPoint_Limit']
+            temp_coefficient = header_values['Temperature_Coefficient']
+            breakpoints = header_values['Number_of_Breakpoints']
+
+            session.add_message(f'Sensor Model for channel {params["channel"]} is {sensor_model}')
+            session.add_message(f'Sensor Serial Number for channel {params["channel"]} is {serial_number}')
+            session.add_message(f'Data Format for channel {params["channel"]} is {data_format}')
+            session.add_message(f'Setpoint Limit for channel {params["channel"]} is {setpoint_limit}')
+            session.add_message(f'Temperature Coefficient for channel {params["channel"]} is {temp_coefficient}')
+            session.add_message(f'Number of Breakpoints for channel {params["channel"]} is {breakpoints}')
+
+            session.data = header_values
+
+        return True, header_values
+
     def upload_cal_curve(self, session, params=None):
         """upload_cal_curve(channel, filename)
 
@@ -375,6 +403,7 @@ def main(args=None):
                         startup=init_params)
     agent.register_task('set_values', therm.set_values)
     agent.register_task('get_values', therm.get_values)
+    agent.register_task('get_curve_header', therm.get_curve_header)
     agent.register_task('upload_cal_curve', therm.upload_cal_curve)
     agent.register_process('acq', therm.acq, therm._stop_acq)
 

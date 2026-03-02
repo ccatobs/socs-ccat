@@ -781,7 +781,7 @@ class LS372_Agent:
                 ranges are 1 to 16, and 0 for control channel A.
         """
 
-        with self._lock.acquire_timeout(job='set_calibration_curve') as acquired:
+        with self._lock.acquire_timeout(job='get_calibration_curve') as acquired:
             if not acquired:
                 self.log.warn(f"Could not start Task because "
                               f"{self._lock.job} is already running")
@@ -1380,7 +1380,7 @@ class LS372_Agent:
             file_path (str): Path to the curve to upload to the curve slot.
         """
 
-        with self._lock.acquire_timeout(job='get_curve_list') as acquired:
+        with self._lock.acquire_timeout(job='upload_cal_curve') as acquired:
             if not acquired:
                 self.log.warn(f"Could not start Task because "
                               f"{self._lock.job} is already running")
@@ -1394,6 +1394,53 @@ class LS372_Agent:
             print('End:', datetime.datetime.utcfromtimestamp(time.time()))
 
         return True, f"Uploaded curve {params['file_path']} to slot {params['curve_slot']}."
+
+    @ocs_agent.param('curve_slot', type = int, check=lambda x: 21 <= x <= 59) #user input curve slots range 21-59
+    def read_curve(self, session, params):
+
+        """read_cuvre(curve_slot)
+
+        **Task** - Reads and returns all data points in a calibration curve.
+
+        Parameters:
+            curve_slot (int): Curve number to read calibration curve to. Usable curve 
+                slots range from 21-59.
+
+        """
+
+        with self._lock.acquire_timeout(job='read_curve') as acquired:
+            if not acquired:
+                self.log.warn(f"Could not start Task because "
+                              f"{self._lock.job} is already running")
+                return False, "Could not acquire lock"
+
+            curve_slot = params['curve_slot'] - 21 #get the position of the curve slot so the curve gets uploaded to the right one
+            curve = self.module.curves[curve_slot]
+
+            header = curve.get_header() #extract header from curve using get_header from LS372 module
+            data_points = curve.get_curve() #extract data points from curve using get_curve from LS372 module
+
+            #add header data to session.data
+            session.data["header"] = {"model": header[0], "serial_number": header[1], "data_format": header[2], 
+                                      "setpoint_limit": header[3], "temp_coefficient": header[4]}
+
+            session.data["curve_points"] = {}
+
+            for i in range(len(data_points)): #add each data point to session.data
+                session.data["curve_points"][i] = {}
+                session.data["curve_points"][i]["resistance"] = data_points[i][0]
+                session.data["curve_points"][i]["temp"] = data_points[i][1]
+
+            session.add_message("Curve Number: %s" % params['curve_slot'])
+            session.add_message("Thermometer Model: %s" % header[0])
+            session.add_message("Serial Number: %s" % header[1])
+            session.add_message("Data Format: %s" % header[2])
+            session.add_message("SetPoint Limit: %s" % header[3])
+            session.add_message("Temperature Coefficient: %s" % header[4])
+            session.add_message("Data Points: %s" % session.data["curve_points"])
+
+        return True, f"Found header and data points for curve {params['curve_slot']}."
+
 
 
 def make_parser(parser=None):
@@ -1495,6 +1542,7 @@ def main(args=None):
     agent.register_task('get_curve_list', lake_agent.get_curve_list)
     agent.register_task('upload_cal_curve', lake_agent.upload_cal_curve)
     agent.register_task('get_calibration_curve', lake_agent.get_calibration_curve)
+    agent.register_task('read_curve', lake_agent.read_curve)
 
     runner.run(agent, auto_reconnect=True)
 

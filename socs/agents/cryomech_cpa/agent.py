@@ -133,6 +133,8 @@ class PTCAgent:
 
             self.take_data = True
 
+            session.data = {'fields': {}}
+
             while self.take_data:
                 # Relinquish sampling lock occasionally
                 if time.time() - last_release > 1.:
@@ -144,7 +146,9 @@ class PTCAgent:
 
                 # Publish data, waiting 1/f_sample seconds in between calls.
                 pub_data = {'timestamp': time.time(),
-                            'block_name': 'ptc_status'}
+                            'block_name': 'ptc_status',
+                            'data': {}
+                            }
                 try:
                     data_flag, data = self.ptc.get_data()
                     if session.degraded:
@@ -156,6 +160,29 @@ class PTCAgent:
                     time.sleep(1)
                     continue
                 pub_data['data'] = data
+                #print(data['Compressor_State'])
+
+                # print(data['Compressor_State'])
+
+                # field_dict = {'Compressor_State': data['Compressor_State']}
+                # print(field_dict)
+                # session.data['fields'].update(field_dict)
+                # print(session.data)
+
+                #session.data = {'Compressor State': data['Compressor_State']}
+                session.data = {'Compressor_State': {'description': data['Compressor_State']},
+                                'Coolant_In': {'description': data['Coolant_In_Temp']},
+                                'Coolant_Out': {'description': data['Coolant_Out_Temp']},
+                                'Oil_Temp': {'description': data['Oil_Temp']},
+                                'Helium_Temp': {'description': data['Helium_Temp']},
+                                'Low_Pressure': {'description': data['Low_Pressure']},
+                                'High_Pressure': {'description': data['High_Pressure']},
+                                'Delta_Pressure_Average': {'description': data['Delta_Pressure_Average']},
+                                'Motor_Current': {'description': data['Motor_Current']},
+                                'Hours_of_Operation': {'description': data['Hours_of_Operation']}
+                                }
+                print(session.data)
+
                 # If there is an error in compressor output (data_flag = True),
                 # do not publish
                 if not data_flag:

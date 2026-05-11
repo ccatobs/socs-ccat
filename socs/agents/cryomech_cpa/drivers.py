@@ -192,5 +192,7 @@ class PTC(TCPInterface):
             data_flag = True
             print("Compressor output could not be converted to numbers."
                   f"Skipping this data block. Bad output string is {rawdata}")
+            
+        # print(data)
 
         return data_flag, data
